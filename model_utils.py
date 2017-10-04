@@ -4,7 +4,7 @@ import tensorflow as tf
 
 def linear(x, size, name):
     w = tf.get_variable(name + "/W", [x.get_shape()[-1], size])
-    b = tf.get_variable(name + "/b", [1, size], initializer=tf.zeros_initializer)
+    b = tf.get_variable(name + "/b", [1, size], initializer=tf.zeros_initializer())
     return tf.matmul(x, w) + b
 
 
@@ -13,9 +13,9 @@ def sharded_variable(name, shape, num_shards, dtype=tf.float32, transposed=False
     # This should be fine for embeddings.
     shard_size = int((shape[0] + num_shards - 1) / num_shards)
     if transposed:
-        initializer = tf.uniform_unit_scaling_initializer(dtype=dtype, full_shape=[shape[1], shape[0]])
+        initializer = tf.uniform_unit_scaling_initializer(dtype=dtype) #, full_shape=[shape[1], shape[0]])
     else:
-        initializer = tf.uniform_unit_scaling_initializer(dtype=dtype, full_shape=shape)
+        initializer = tf.uniform_unit_scaling_initializer(dtype=dtype) #, full_shape=shape)
     return [tf.get_variable(name + "_%d" % i, [shard_size, shape[1]], initializer=initializer, dtype=dtype)
             for i in range(num_shards)]
 
@@ -44,7 +44,7 @@ def _get_concat_variable(name, shape, dtype, num_shards):
     if len(_sharded_variable) == 1:
         return _sharded_variable[0]
 
-    return tf.concat(0, _sharded_variable)
+    return tf.concat(axis=0, values=_sharded_variable)
 
 
 class LSTMCell(tf.nn.rnn_cell.RNNCell):
@@ -71,7 +71,7 @@ class LSTMCell(tf.nn.rnn_cell.RNNCell):
 
             self._b = tf.get_variable(
                 "B", shape=[4 * self._num_units],
-                initializer=tf.zeros_initializer, dtype=dtype)
+                initializer=tf.zeros_initializer(), dtype=dtype)
 
             self._concat_w_proj = _get_concat_variable(
                 "W_P", [self._num_units, self._num_proj],
@@ -97,9 +97,9 @@ class LSTMCell(tf.nn.rnn_cell.RNNCell):
         with tf.variable_scope(type(self).__name__,
                                initializer=self._initializer):  # "LSTMCell"
             # i = input_gate, j = new_input, f = forget_gate, o = output_gate
-            cell_inputs = tf.concat(1, [inputs, m_prev])
+            cell_inputs = tf.concat(axis=1, values=[inputs, m_prev])
             lstm_matrix = tf.nn.bias_add(tf.matmul(cell_inputs, self._concat_w), self._b)
-            i, j, f, o = tf.split(1, 4, lstm_matrix)
+            i, j, f, o = tf.split(axis=1, num_or_size_splits=4, value=lstm_matrix)
 
             c = tf.sigmoid(f + 1.0) * c_prev + tf.sigmoid(i) * tf.tanh(j)
             m = tf.sigmoid(o) * tf.tanh(c)
@@ -107,5 +107,5 @@ class LSTMCell(tf.nn.rnn_cell.RNNCell):
             if self._num_proj is not None:
                 m = tf.matmul(m, self._concat_w_proj)
 
-        new_state = tf.concat(1, [c, m])
+        new_state = tf.concat(axis=1, values=[c, m])
         return m, new_state

@@ -44,8 +44,8 @@ class TestLM(tf.test.test_util.TensorFlowTestCase):
             model = LM(hps)
 
         with self.test_session() as sess:
-            tf.initialize_all_variables().run()
-            tf.initialize_local_variables().run()
+            tf.global_variables_initializer().run()
+            tf.local_variables_initializer().run()
 
             loss = 1e5
             for i in range(50):
